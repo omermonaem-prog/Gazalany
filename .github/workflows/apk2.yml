@@ -1,0 +1,63 @@
+name: Build APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Unpack project
+        working-directory: .
+        run: unzip -q -o project.zip -d app
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Relax intl version
+        run: sed -i 's/intl: \^0\.19\.0/intl: any/' pubspec.yaml
+
+      - name: Recreate Android scaffolding
+        run: |
+          rm -rf android
+          flutter create --platforms=android --org com.myfinance.app --project-name my_finance .
+          sed -i 's|android:label="[^"]*"|android:label="جزلاني - MyFinance"|' android/app/src/main/AndroidManifest.xml
+
+      - name: Get packages
+        run: flutter pub get
+
+      - name: Generate Drift code
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Analyze code (info only)
+        continue-on-error: true
+        run: flutter analyze lib --no-fatal-infos --no-fatal-warnings 2>&1 | tee analyze.log
+
+      - name: Build APK
+        run: flutter build apk --release
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: myfinance-apk
+          path: app/build/app/outputs/flutter-apk/app-release.apk
+
+      - name: Upload analyze log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: analyze-log
+          path: app/analyze.log
+          if-no-files-found: ignore
