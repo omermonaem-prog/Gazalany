@@ -31,6 +31,10 @@ jobs:
         run: |
           sed -i 's/intl: \^0\.19\.0/intl: any/' pubspec.yaml
 
+      - name: Remove Drift build options
+        run: |
+          rm -f build.yaml
+
       - name: Recreate Android scaffolding
         run: |
           rm -rf android
@@ -41,7 +45,7 @@ jobs:
         run: flutter pub get
 
       - name: Generate Drift code
-        run: dart run build_runner build --delete-conflicting-outputs
+        run: dart run build_runner build
 
       - name: Analyze code (info only)
         continue-on-error: true
